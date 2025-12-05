@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
@@ -96,12 +97,15 @@ export class UsersService {
     });
     const embedding = await this.embeddingsService.generateEmbedding(prompt);
 
+    const behaviorPrefsData: Prisma.NullableJsonNullValueInput | Prisma.InputJsonValue =
+      (input.behaviorPreferences as Prisma.InputJsonValue | undefined) ?? Prisma.JsonNull;
+
     return this.prisma.user.create({
       data: {
         name: input.name,
         ...input.traits,
         embedding,
-        behaviorPreferences: input.behaviorPreferences ?? null,
+        behaviorPreferences: behaviorPrefsData,
         isTestUser: input.isTestUser ?? false,
       },
     });
@@ -144,12 +148,16 @@ export class UsersService {
     });
     const embedding = await this.embeddingsService.generateEmbedding(prompt);
 
+    const existingBehavior = existing.behaviorPreferences ?? Prisma.JsonNull;
+    const nextBehaviorPrefs: Prisma.NullableJsonNullValueInput | Prisma.InputJsonValue =
+      (input.behaviorPreferences as Prisma.InputJsonValue | undefined) ?? existingBehavior;
+
     return this.prisma.user.update({
       where: { id },
       data: {
         ...updatedTraits,
         embedding,
-        behaviorPreferences: input.behaviorPreferences ?? existing.behaviorPreferences,
+        behaviorPreferences: nextBehaviorPrefs,
       },
     });
   }
@@ -183,7 +191,7 @@ export class UsersService {
     return this.prisma.user.update({
       where: { id },
       data: {
-        behaviorPreferences,
+        behaviorPreferences: behaviorPreferences as Prisma.InputJsonValue,
         embedding,
       },
     });
