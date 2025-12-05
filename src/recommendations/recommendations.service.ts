@@ -9,6 +9,8 @@ type InteractionSummary = { vendorId: number; liked: boolean; score: number | nu
 
 type VendorWithTraitsAndEmbedding = {
   id: number;
+  name: string;
+  description: string | null;
   embedding: number[];
   serviceQuality: number;
   interactionStyle: number;
@@ -34,6 +36,7 @@ type RecommendationItem = {
   };
   debug?: {
     vendorTraitVector: number[];
+    prompt?: string;
   };
 };
 
@@ -146,6 +149,43 @@ export class RecommendationsService {
     ];
   }
 
+  private buildVendorPromptForDebug(vendor: {
+    name: string;
+    description: string | null;
+    serviceQuality: number;
+    interactionStyle: number;
+    serviceConduct: number;
+    expertise: number;
+    environment: number;
+    atmosphere: number;
+    design: number;
+    hospitality: number;
+    outcomeQuality: number;
+    waitingTime: number;
+    physicalElements: number;
+    experienceTone: number;
+  }): string {
+    return [
+      `Vendor: ${vendor.name}`,
+      vendor.description ? `Description: ${vendor.description}` : '',
+      'Traits:',
+      `Service Quality: ${vendor.serviceQuality}`,
+      `Interaction Style: ${vendor.interactionStyle}`,
+      `Service Conduct: ${vendor.serviceConduct}`,
+      `Expertise: ${vendor.expertise}`,
+      `Environment: ${vendor.environment}`,
+      `Atmosphere: ${vendor.atmosphere}`,
+      `Design: ${vendor.design}`,
+      `Hospitality: ${vendor.hospitality}`,
+      `Outcome Quality: ${vendor.outcomeQuality}`,
+      `Waiting Time: ${vendor.waitingTime}`,
+      `Physical Elements: ${vendor.physicalElements}`,
+      `Experience Tone: ${vendor.experienceTone}`,
+    ]
+      .filter(Boolean)
+      .join('\n');
+  }
+
   private computeTraitSimilarity(
     userVector: number[],
     vendorVector: number[],
@@ -244,10 +284,11 @@ export class RecommendationsService {
 
     const behaviorPreferences = adjustments?.behaviorPreferences ?? user.behaviorPreferences ?? undefined;
 
+    const userPrompt = this.buildUserPromptFromTraits(user.name, traits, behaviorPreferences);
+
     let userEmbedding: number[] = user.embedding;
     if (testMode || adjustments) {
-      const prompt = this.buildUserPromptFromTraits(user.name, traits, behaviorPreferences);
-      userEmbedding = await this.embeddingsService.generateEmbedding(prompt);
+      userEmbedding = await this.embeddingsService.generateEmbedding(userPrompt);
     }
 
     const vendors = (await this.prisma.vendor.findMany({
@@ -303,6 +344,7 @@ export class RecommendationsService {
         debug: debug
           ? {
               vendorTraitVector,
+              prompt: this.buildVendorPromptForDebug(vendor),
             }
           : undefined,
       };
@@ -323,6 +365,7 @@ export class RecommendationsService {
               userTraitVector,
               userEmbeddingLength: userEmbedding.length,
               adjustments,
+              prompt: userPrompt,
             }
           : undefined,
       },

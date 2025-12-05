@@ -405,6 +405,188 @@ In debug mode (`GET /debug/recommendations/:id`), you also get:
 - `recommendations[i].debug.vendorTraitVector`
 - Parsed `adjustments` for transparency.
 
+### 6. Intuition & worked example (Adventurous Alex)
+
+This section explains the same logic with a real example from the seeded data.
+
+#### Example user: Adventurous Alex (user id 6)
+
+Traits:
+
+```json
+{
+  "adventurous": 5,
+  "decisive": 4,
+  "eccentric": 3,
+  "flexible": 4,
+  "loyal": 3,
+  "optimistic": 5,
+  "patient": 2,
+  "perfectionist": 2,
+  "punctual": 3
+}
+```
+
+Trait vector:
+
+```text
+[5, 4, 3, 4, 3, 5, 2, 2, 3]
+```
+
+Behavior preferences:
+
+```json
+{ "likesAdventurousVendors": true }
+```
+
+He has interactions like:
+
+```json
+[
+  { "userId": 6, "vendorId": 11, "liked": true,  "score": 5 },
+  { "userId": 6, "vendorId": 14, "liked": true,  "score": 4 },
+  { "userId": 6, "vendorId": 16, "liked": false, "score": 2 }
+]
+```
+
+#### Example vendor: Artisan Hub (vendor id 14)
+
+Traits:
+
+```json
+{
+  "serviceQuality": 2,
+  "interactionStyle": 1,
+  "serviceConduct": 3,
+  "expertise": 4,
+  "environment": 2,
+  "atmosphere": 2,
+  "design": 3,
+  "hospitality": 5,
+  "outcomeQuality": 2,
+  "waitingTime": 2,
+  "physicalElements": 2,
+  "experienceTone": 5
+}
+```
+
+Vendor trait vector:
+
+```text
+[2, 1, 3, 4, 2, 2, 3, 5, 2, 2, 2, 5]
+```
+
+#### User & vendor prompts used for embeddings (debug)
+
+In `GET /debug/recommendations/6`, you can see the actual prompts:
+
+- User prompt (simplified):
+
+  ```text
+  User: Adventurous Alex
+  Personality traits:
+  Adventurous: 5
+  Decisive: 4
+  Eccentric: 3
+  Flexible: 4
+  Loyal: 3
+  Optimistic: 5
+  Patient: 2
+  Perfectionist: 2
+  Punctual: 3
+  Behavior preferences: {"likesAdventurousVendors":true}
+  ```
+
+- Vendor prompt:
+
+  ```text
+  Vendor: Artisan Hub
+  Description: Sample vendor with varied service traits.
+  Traits:
+  Service Quality: 2
+  Interaction Style: 1
+  Service Conduct: 3
+  Expertise: 4
+  Environment: 2
+  Atmosphere: 2
+  Design: 3
+  Hospitality: 5
+  Outcome Quality: 2
+  Waiting Time: 2
+  Physical Elements: 2
+  Experience Tone: 5
+  ```
+
+These prompts are what the embedding script receives as input.
+
+#### The scores the engine computes (real values)
+
+For user 6 and vendor 14, from debug:
+
+```json
+"scores": {
+  "embeddingScore": 0.8564239081429189,
+  "traitScore": 0,
+  "behaviorScore": 0.9769492547847165,
+  "finalScore": 0.6236018050284028
+}
+```
+
+How these are built:
+
+- **Embedding score (0.8564)**:
+  - Compare `user.embedding` vs `vendor.embedding` using cosine similarity.
+  - This reflects overall semantic match between “Adventurous Alex + likes adventurous vendors” and “Artisan Hub’s traits”.
+- **Trait score (0)**:
+  - Compare user trait vector vs vendor trait vector after normalization.
+  - In this particular pair, this contribution is extremely small / negligible, so it shows as 0.
+- **Behavior score (≈ 0.977)**:
+  - Alex has `liked: true` for vendor 14, so `directScore = 1`.
+  - Vendor 14 also looks similar (by traits) to other vendors Alex liked.
+  - Combine those into `behaviorScore = 0.6 * directScore + 0.4 * similarityToLiked`.
+
+Then we combine:
+
+```text
+finalScore
+  = 0.5 * embeddingScore
+  + 0.3 * traitScore
+  + 0.2 * behaviorScore
+
+≈ 0.5 * 0.8564
+  + 0.3 * 0
+  + 0.2 * 0.9769
+
+≈ 0.6236
+```
+
+So “Artisan Hub” floats to the top of Alex’s recommendation list because:
+
+- The embedding system thinks the user and vendor descriptions “feel” similar.
+- Alex explicitly liked this vendor, and it resembles other things he liked.
+- Even though raw trait similarity (as we’ve currently defined it) doesn’t add much for this pair, embeddings + behavior carry it.
+
+### 7. How user and vendor embeddings live in the same space
+
+Even though users and vendors are described with **different traits**, they are turned into text and fed into the **same embedding function**:
+
+- User text: includes “Personality traits”, “Behavior preferences”, etc.
+- Vendor text: includes “Traits: Service Quality, Atmosphere, Waiting Time…”
+
+The embedding model (in `EMBEDDINGS_MODE=real`) is a pre-trained sentence-transformer (e.g. `all-MiniLM-L6-v2`) that has been trained on huge text corpora to place **semantically related sentences near each other**. Over training:
+
+- It sees combinations like “adventurous, spontaneous, likes excitement” near “high-energy, lively atmosphere, exciting experiences”.
+- It learns to represent those as nearby points in vector space.
+
+As a result:
+
+- A user prompt describing an adventurous, high-energy person, and
+- A vendor prompt describing a lively, adventurous experience
+
+end up with embeddings that are close enough that cosine similarity is a meaningful measure of user–vendor match.
+
+In Docker, `EMBEDDINGS_MODE=mock` uses a deterministic hash-based embedding that keeps the mechanics (same dimension, same function for user and vendor) without the semantic richness, but the pipeline and scoring stay identical. You can switch to real embeddings locally by installing the Python deps and setting `EMBEDDINGS_MODE=real`.
+
 ---
 
 ## API Endpoints Overview
