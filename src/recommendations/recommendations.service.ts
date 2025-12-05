@@ -1,11 +1,18 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { EmbeddingsService } from '../embeddings/embeddings.service';
-import { cosineSimilarity, normalizeVector } from '../common/vector.utils';
-import { behaviorPreferencesSchema, userTraitsSchema } from '../users/users.service';
-import { z } from 'zod';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { EmbeddingsService } from "../embeddings/embeddings.service";
+import { cosineSimilarity, normalizeVector } from "../common/vector.utils";
+import {
+  behaviorPreferencesSchema,
+  userTraitsSchema,
+} from "../users/users.service";
+import { z } from "zod";
 
-type InteractionSummary = { vendorId: number; liked: boolean; score: number | null };
+type InteractionSummary = {
+  vendorId: number;
+  liked: boolean;
+  score: number | null;
+};
 
 type VendorWithTraitsAndEmbedding = {
   id: number;
@@ -73,13 +80,17 @@ export type AdjustmentsInput = z.infer<typeof adjustmentsSchema>;
 export class RecommendationsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly embeddingsService: EmbeddingsService,
+    private readonly embeddingsService: EmbeddingsService
   ) {}
 
-  private buildUserPromptFromTraits(name: string, traits: z.infer<typeof userTraitsSchema>, behaviorPreferences?: unknown) {
+  private buildUserPromptFromTraits(
+    name: string,
+    traits: z.infer<typeof userTraitsSchema>,
+    behaviorPreferences?: unknown
+  ) {
     return [
       `User: ${name}`,
-      'Personality traits:',
+      "Personality traits:",
       `Adventurous: ${traits.adventurous}`,
       `Decisive: ${traits.decisive}`,
       `Eccentric: ${traits.eccentric}`,
@@ -89,10 +100,12 @@ export class RecommendationsService {
       `Patient: ${traits.patient}`,
       `Perfectionist: ${traits.perfectionist}`,
       `Punctual: ${traits.punctual}`,
-      behaviorPreferences ? `Behavior preferences: ${JSON.stringify(behaviorPreferences)}` : '',
+      behaviorPreferences
+        ? `Behavior preferences: ${JSON.stringify(behaviorPreferences)}`
+        : "",
     ]
       .filter(Boolean)
-      .join('\n');
+      .join("\n");
   }
 
   private getUserTraitVector(user: {
@@ -167,8 +180,8 @@ export class RecommendationsService {
   }): string {
     return [
       `Vendor: ${vendor.name}`,
-      vendor.description ? `Description: ${vendor.description}` : '',
-      'Traits:',
+      vendor.description ? `Description: ${vendor.description}` : "",
+      "Traits:",
       `Service Quality: ${vendor.serviceQuality}`,
       `Interaction Style: ${vendor.interactionStyle}`,
       `Service Conduct: ${vendor.serviceConduct}`,
@@ -183,12 +196,12 @@ export class RecommendationsService {
       `Experience Tone: ${vendor.experienceTone}`,
     ]
       .filter(Boolean)
-      .join('\n');
+      .join("\n");
   }
 
   private computeTraitSimilarity(
     userVector: number[],
-    vendorVector: number[],
+    vendorVector: number[]
   ): number {
     const u = normalizeVector(userVector);
     const v = normalizeVector(vendorVector);
@@ -197,11 +210,20 @@ export class RecommendationsService {
 
   private computeBehaviorScoreForVendor(params: {
     vendorId: number;
-    userInteractions: { vendorId: number; liked: boolean; score: number | null }[];
+    userInteractions: {
+      vendorId: number;
+      liked: boolean;
+      score: number | null;
+    }[];
     vendorTraitVector: number[];
     likedVendorsTraitMap: Map<number, number[]>;
   }): number {
-    const { vendorId, userInteractions, vendorTraitVector, likedVendorsTraitMap } = params;
+    const {
+      vendorId,
+      userInteractions,
+      vendorTraitVector,
+      likedVendorsTraitMap,
+    } = params;
 
     const interaction = userInteractions.find((i) => i.vendorId === vendorId);
     let directScore = 0;
@@ -214,7 +236,9 @@ export class RecommendationsService {
     }
 
     // Similarity to liked vendors (simple collaborative-filter-like behavior)
-    const likedVendors = userInteractions.filter((i: InteractionSummary) => i.liked);
+    const likedVendors = userInteractions.filter(
+      (i: InteractionSummary) => i.liked
+    );
     let similarityAggregate = 0;
     if (likedVendors.length > 0) {
       let total = 0;
@@ -235,7 +259,7 @@ export class RecommendationsService {
     userId: number,
     testMode: boolean,
     adjustmentsRaw: string | undefined,
-    options?: { debug?: boolean },
+    options?: { debug?: boolean }
   ) {
     const debug = options?.debug ?? false;
 
@@ -275,20 +299,27 @@ export class RecommendationsService {
       behavior: adjustments?.behaviorWeight ?? defaultWeights.behavior,
     };
 
-    const weightSum = weights.embedding + weights.traits + weights.behavior || 1;
+    const weightSum =
+      weights.embedding + weights.traits + weights.behavior || 1;
     const normalizedWeights = {
       embedding: weights.embedding / weightSum,
       traits: weights.traits / weightSum,
       behavior: weights.behavior / weightSum,
     };
 
-    const behaviorPreferences = adjustments?.behaviorPreferences ?? user.behaviorPreferences ?? undefined;
+    const behaviorPreferences =
+      adjustments?.behaviorPreferences ?? user.behaviorPreferences ?? undefined;
 
-    const userPrompt = this.buildUserPromptFromTraits(user.name, traits, behaviorPreferences);
+    const userPrompt = this.buildUserPromptFromTraits(
+      user.name,
+      traits,
+      behaviorPreferences
+    );
 
     let userEmbedding: number[] = user.embedding;
     if (testMode || adjustments) {
-      userEmbedding = await this.embeddingsService.generateEmbedding(userPrompt);
+      userEmbedding =
+        await this.embeddingsService.generateEmbedding(userPrompt);
     }
 
     const vendors = (await this.prisma.vendor.findMany({
@@ -301,7 +332,8 @@ export class RecommendationsService {
     for (const vendor of vendors) {
       if (
         user.interactions.some(
-          (i: { vendorId: number; liked: boolean }) => i.vendorId === vendor.id && i.liked,
+          (i: { vendorId: number; liked: boolean }) =>
+            i.vendorId === vendor.id && i.liked
         )
       ) {
         likedVendorsTraitMap.set(vendor.id, this.getVendorTraitVector(vendor));
@@ -309,48 +341,63 @@ export class RecommendationsService {
     }
 
     const userInteractions: InteractionSummary[] = user.interactions.map(
-      (i: { vendorId: number; liked: boolean; score: number | null }): InteractionSummary => ({
+      (i: {
+        vendorId: number;
+        liked: boolean;
+        score: number | null;
+      }): InteractionSummary => ({
         vendorId: i.vendorId,
         liked: i.liked,
         score: i.score,
-      }),
+      })
     );
 
-    const results: RecommendationItem[] = vendors.map((vendor: VendorWithTraitsAndEmbedding) => {
-      const vendorTraitVector = this.getVendorTraitVector(vendor);
+    const results: RecommendationItem[] = vendors.map(
+      (vendor: VendorWithTraitsAndEmbedding) => {
+        const vendorTraitVector = this.getVendorTraitVector(vendor);
 
-      const embeddingScore = cosineSimilarity(userEmbedding, vendor.embedding);
-      const traitScore = this.computeTraitSimilarity(userTraitVector, vendorTraitVector);
-      const behaviorScore = this.computeBehaviorScoreForVendor({
-        vendorId: vendor.id,
-        userInteractions,
-        vendorTraitVector,
-        likedVendorsTraitMap,
-      });
+        const embeddingScore = cosineSimilarity(
+          userEmbedding,
+          vendor.embedding
+        );
+        const traitScore = this.computeTraitSimilarity(
+          userTraitVector,
+          vendorTraitVector
+        );
+        const behaviorScore = this.computeBehaviorScoreForVendor({
+          vendorId: vendor.id,
+          userInteractions,
+          vendorTraitVector,
+          likedVendorsTraitMap,
+        });
 
-      const finalScore =
-        normalizedWeights.embedding * embeddingScore +
-        normalizedWeights.traits * traitScore +
-        normalizedWeights.behavior * behaviorScore;
+        const finalScore =
+          normalizedWeights.embedding * embeddingScore +
+          normalizedWeights.traits * traitScore +
+          normalizedWeights.behavior * behaviorScore;
 
-      return {
-        vendor,
-        scores: {
-          embeddingScore,
-          traitScore,
-          behaviorScore,
-          finalScore,
-        },
-        debug: debug
-          ? {
-              vendorTraitVector,
-              prompt: this.buildVendorPromptForDebug(vendor),
-            }
-          : undefined,
-      };
-    });
+        return {
+          vendor,
+          scores: {
+            embeddingScore,
+            traitScore,
+            behaviorScore,
+            finalScore,
+          },
+          debug: debug
+            ? {
+                vendorTraitVector,
+                prompt: this.buildVendorPromptForDebug(vendor),
+              }
+            : undefined,
+        };
+      }
+    );
 
-    results.sort((a: RecommendationItem, b: RecommendationItem) => b.scores.finalScore - a.scores.finalScore);
+    results.sort(
+      (a: RecommendationItem, b: RecommendationItem) =>
+        b.scores.finalScore - a.scores.finalScore
+    );
 
     return {
       user: {
@@ -373,13 +420,23 @@ export class RecommendationsService {
     };
   }
 
-  async getRecommendations(userId: number, testMode: boolean, adjustmentsRaw?: string) {
-    return this.computeRecommendations(userId, testMode, adjustmentsRaw, { debug: false });
+  async getRecommendations(
+    userId: number,
+    testMode: boolean,
+    adjustmentsRaw?: string
+  ) {
+    return this.computeRecommendations(userId, testMode, adjustmentsRaw, {
+      debug: false,
+    });
   }
 
-  async getRecommendationsDebug(userId: number, testMode: boolean, adjustmentsRaw?: string) {
-    return this.computeRecommendations(userId, testMode, adjustmentsRaw, { debug: true });
+  async getRecommendationsDebug(
+    userId: number,
+    testMode: boolean,
+    adjustmentsRaw?: string
+  ) {
+    return this.computeRecommendations(userId, testMode, adjustmentsRaw, {
+      debug: true,
+    });
   }
 }
-
-
