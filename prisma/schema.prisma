@@ -1,0 +1,76 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Vendor {
+  id                Int       @id @default(autoincrement())
+  name              String
+  description       String?
+
+  serviceQuality    Int       @default(3)
+  interactionStyle  Int       @default(3)
+  serviceConduct    Int       @default(3)
+  expertise         Int       @default(3)
+  environment       Int       @default(3)
+  atmosphere        Int       @default(3)
+  design            Int       @default(3)
+  hospitality       Int       @default(3)
+  outcomeQuality    Int       @default(3)
+  waitingTime       Int       @default(3)
+  physicalElements  Int       @default(3)
+  experienceTone    Int       @default(3)
+
+  embedding         Float[]
+
+  interactions      Interaction[]
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model User {
+  id              Int           @id @default(autoincrement())
+  name            String
+
+  adventurous     Int           @default(3)
+  decisive        Int           @default(3)
+  eccentric       Int           @default(3)
+  flexible        Int           @default(3)
+  loyal           Int           @default(3)
+  optimistic      Int           @default(3)
+  patient         Int           @default(3)
+  perfectionist   Int           @default(3)
+  punctual        Int           @default(3)
+
+  embedding       Float[]
+
+  behaviorPreferences Json?
+  isTestUser          Boolean       @default(false)
+
+  interactions    Interaction[]
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model Interaction {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  vendor    Vendor   @relation(fields: [vendorId], references: [id])
+  vendorId  Int
+
+  liked     Boolean
+  score     Int?     // optional rating 1–5 to simulate collaborative filtering strength
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, vendorId])
+}
+
+

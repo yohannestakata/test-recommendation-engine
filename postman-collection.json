@@ -1,0 +1,230 @@
+{
+  "info": {
+    "name": "Zagoal Recommendation API",
+    "_postman_id": "c9c54f64-0f9f-4f95-9f8c-1234567890ab",
+    "description": "Collection for vendors, users, interactions, recommendations, and debug views.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Vendors",
+      "item": [
+        {
+          "name": "Get Vendors",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vendors",
+              "host": ["{{baseUrl}}"],
+              "path": ["vendors"]
+            }
+          }
+        },
+        {
+          "name": "Create Vendor (sample)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sample Vendor\",\n  \"description\": \"Example vendor created from Postman.\",\n  \"traits\": {\n    \"serviceQuality\": 5,\n    \"interactionStyle\": 4,\n    \"serviceConduct\": 5,\n    \"expertise\": 5,\n    \"environment\": 4,\n    \"atmosphere\": 4,\n    \"design\": 4,\n    \"hospitality\": 5,\n    \"outcomeQuality\": 5,\n    \"waitingTime\": 3,\n    \"physicalElements\": 4,\n    \"experienceTone\": 4\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vendors",
+              "host": ["{{baseUrl}}"],
+              "path": ["vendors"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            }
+          }
+        },
+        {
+          "name": "Create User with Behavior Preferences",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Behavior Test User\",\n  \"traits\": {\n    \"adventurous\": 4,\n    \"decisive\": 3,\n    \"eccentric\": 2,\n    \"flexible\": 4,\n    \"loyal\": 3,\n    \"optimistic\": 4,\n    \"patient\": 3,\n    \"perfectionist\": 2,\n    \"punctual\": 4\n  },\n  \"behaviorPreferences\": {\n    \"notes\": \"Loves great atmosphere and design\",\n    \"recentPattern\": \"Often chooses stylish, social places\",\n    \"vendorTraitWeights\": {\n      \"atmosphere\": 0.9,\n      \"design\": 0.8\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            }
+          }
+        },
+        {
+          "name": "Update User Traits (partial)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"traits\": {\n    \"adventurous\": 5,\n    \"perfectionist\": 1\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/5",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "5"]
+            }
+          }
+        },
+        {
+          "name": "Update Behavior Preferences Only",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"behaviorPreferences\": {\n    \"notes\": \"Now prefers quiet, short-wait venues\",\n    \"recentPattern\": \"Frequently abandons long-wait places\",\n    \"vendorTraitWeights\": {\n      \"waitingTime\": 1.0,\n      \"environment\": 0.7\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/5/behavior",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "5", "behavior"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Interactions",
+      "item": [
+        {
+          "name": "Upsert Interaction (like vendor)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 5,\n  \"vendorId\": 2,\n  \"liked\": true,\n  \"score\": 5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/interactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["interactions"]
+            }
+          }
+        },
+        {
+          "name": "List Interactions for User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/interactions/user/5",
+              "host": ["{{baseUrl}}"],
+              "path": ["interactions", "user", "5"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recommendations",
+      "item": [
+        {
+          "name": "Get Recommendations (baseline)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/recommendations/5",
+              "host": ["{{baseUrl}}"],
+              "path": ["recommendations", "5"]
+            }
+          }
+        },
+        {
+          "name": "Get Recommendations with Adjustments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/recommendations/5?testMode=true&adjustments={\"Adventurous\":5,\"Perfectionist\":1}",
+              "host": ["{{baseUrl}}"],
+              "path": ["recommendations", "5"],
+              "query": [
+                { "key": "testMode", "value": "true" },
+                { "key": "adjustments", "value": "{\"Adventurous\":5,\"Perfectionist\":1}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Recommendations with Weights & Behavior Override",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/recommendations/5?testMode=true&adjustments={\"Adventurous\":5,\"embeddingWeight\":0.6,\"traitWeight\":0.2,\"behaviorWeight\":0.2,\"behaviorPreferences\":{\"notes\":\"Temporary scenario\",\"vendorTraitWeights\":{\"serviceQuality\":1.0,\"waitingTime\":0.9}}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["recommendations", "5"],
+              "query": [
+                { "key": "testMode", "value": "true" },
+                {
+                  "key": "adjustments",
+                  "value": "{\"Adventurous\":5,\"embeddingWeight\":0.6,\"traitWeight\":0.2,\"behaviorWeight\":0.2,\"behaviorPreferences\":{\"notes\":\"Temporary scenario\",\"vendorTraitWeights\":{\"serviceQuality\":1.0,\"waitingTime\":0.9}}}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recommendations Debug",
+      "item": [
+        {
+          "name": "Debug Recommendations (vectors and adjustments)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/debug/recommendations/5?testMode=true&adjustments={\"Adventurous\":5,\"Perfectionist\":1}",
+              "host": ["{{baseUrl}}"],
+              "path": ["debug", "recommendations", "5"],
+              "query": [
+                { "key": "testMode", "value": "true" },
+                { "key": "adjustments", "value": "{\"Adventurous\":5,\"Perfectionist\":1}" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    }
+  ]
+}
